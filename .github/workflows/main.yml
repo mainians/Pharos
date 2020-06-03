@@ -1,0 +1,32 @@
+name: release
+on:
+  schedule:
+    - cron: "* * * * *"
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check and release
+      run: |
+        CORE_TAG_URL="https://api.github.com/repos/PharosVip/Pharos-Android-Test/releases/latest"
+        CORE_LATEST_VER=`(curl -sSL ${CORE_TAG_URL} --connect-timeout 30| grep 'tag_name' | cut -d\" -f4)`
+        if [[ ${CORE_LATEST_VER} != v* ]]; then
+            CORE_LATEST_VER=v${CORE_LATEST_VER}
+        fi
+        DIST_TAGS_URL="https://api.github.com/repos/${{ github.repository }}/tags"
+        DIST_TAG_FOUND=`curl -sSL ${DIST_TAGS_URL} --connect-timeout 30| grep "\"name\"\: \"${CORE_LATEST_VER}\""` || true
+        if [ -z ${DIST_TAG_FOUND} ]; then
+            wget https://github.com/PharosVip/Pharos-Android-Test/releases/download/${CORE_LATEST_VER}/PharosPro${CORE_LATEST_VER#?}.apk  > /dev/null
+            wget https://github.com/${{ github.repository }}/raw/master/README.md
+            mkdir -p .github/workflows
+            wget -O .github/workflows/main.yml https://github.com/${{ github.repository }}/raw/master/.github/workflows/main.yml
+            git init
+            git add .
+            git config user.name "Scaleya"
+            git config user.email "61817665+Scaleya@users.noreply.github.com"
+            git commit -m "Version ${CORE_LATEST_VER}"
+            git tag -a "${CORE_LATEST_VER}" -m "Version ${CORE_LATEST_VER}"
+            git remote add origin "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
+            git push -u --force --follow-tags origin master
+        fi
